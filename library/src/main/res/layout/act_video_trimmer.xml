@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/StyleRoot"
+    android:background="#303030"
+    android:id="@+id/root_view"
+    tools:ignore="ContentDescription">
+
+    <LinearLayout style="@style/FView">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="#212121"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:titleTextColor="@color/colorWhite" />
+
+        <RelativeLayout style="@style/VWView">
+
+            <com.google.android.exoplayer2.ui.StyledPlayerView
+                android:id="@+id/player_view_lib"
+                style="@style/FView"
+                android:layout_gravity="center_vertical"
+                app:use_controller="false" />
+
+            <ImageView
+                android:id="@+id/image_play_pause"
+                style="@style/WView"
+                android:layout_centerInParent="true"
+                android:background="@drawable/shape_circle_lib"
+                android:padding="12dp"
+                android:src="@drawable/ic_video_play_lib"
+                android:visibility="gone" />
+
+            <ProgressBar
+                android:id="@+id/progress_circular"
+                android:layout_centerInParent="true"
+                style="@style/WView" />
+        </RelativeLayout>
+
+    </LinearLayout>
+
+    <include layout="@layout/view_video_controller" />
+
+    <TextView
+        android:id="@+id/txt_start_duration"
+        style="@style/TxtRgStyle22"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="40dp"
+        android:textColor="#80FFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+
+    <TextView
+        android:id="@+id/txt_end_duration"
+        style="@style/TxtRgStyle22"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="40dp"
+        android:textColor="#80FFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
