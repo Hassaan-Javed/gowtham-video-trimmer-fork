@@ -188,7 +188,7 @@ You can obtain the source code for FFmpeg from https://github.com/arthenica/ffmp
 If you wish to replace or modify the FFmpeg library used in this project, follow these steps:
 
 1. Obtain the modified version of FFmpeg.
-2. Replace the existing FFmpeg aar inside `library/libs` directory.
+2. Replace the existing ffmpeg-kit-android-lib folder inside root directory.
 3. Rebuild the project.
   
 ## Support 
