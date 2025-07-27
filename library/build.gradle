@@ -50,7 +50,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.4.2'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'com.google.android.exoplayer:exoplayer:2.17.1'
-    implementation files('libs/ffmpeg-kit-release.aar')
+    implementation project(':ffmpeg-kit-android-lib')
     implementation 'com.github.bumptech.glide:glide:4.15.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
     implementation 'com.akexorcist:localization:1.2.9'

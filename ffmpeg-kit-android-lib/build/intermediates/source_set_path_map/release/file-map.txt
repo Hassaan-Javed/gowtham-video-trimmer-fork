@@ -1,0 +1,7 @@
+com.arthenica.ffmpegkit.ffmpeg-kit-android-lib-pngs-0 D:\ffmpeg-kit-6.0.LTS\android\ffmpeg-kit-android-lib\build\generated\res\pngs\release
+com.arthenica.ffmpegkit.ffmpeg-kit-android-lib-resValues-1 D:\ffmpeg-kit-6.0.LTS\android\ffmpeg-kit-android-lib\build\generated\res\resValues\release
+com.arthenica.ffmpegkit.ffmpeg-kit-android-lib-mergeReleaseResources-2 D:\ffmpeg-kit-6.0.LTS\android\ffmpeg-kit-android-lib\build\intermediates\incremental\release\mergeReleaseResources\merged.dir
+com.arthenica.ffmpegkit.ffmpeg-kit-android-lib-mergeReleaseResources-3 D:\ffmpeg-kit-6.0.LTS\android\ffmpeg-kit-android-lib\build\intermediates\incremental\release\mergeReleaseResources\stripped.dir
+com.arthenica.ffmpegkit.ffmpeg-kit-android-lib-merged_res-4 D:\ffmpeg-kit-6.0.LTS\android\ffmpeg-kit-android-lib\build\intermediates\merged_res\release
+com.arthenica.ffmpegkit.ffmpeg-kit-android-lib-main-5 D:\ffmpeg-kit-6.0.LTS\android\ffmpeg-kit-android-lib\src\main\res
+com.arthenica.ffmpegkit.ffmpeg-kit-android-lib-release-6 D:\ffmpeg-kit-6.0.LTS\android\ffmpeg-kit-android-lib\src\release\res
