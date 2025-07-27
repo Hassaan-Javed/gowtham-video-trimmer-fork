@@ -1,3 +1,4 @@
+[![](https://jitpack.io/v/Hassaan-Javed/gowtham-video-trimmer-fork.svg)](https://jitpack.io/#Hassaan-Javed/gowtham-video-trimmer-fork)
 
 # Android Video Trimmer (Fork)
 
@@ -21,7 +22,7 @@ _Forked from [a914‑gowtham/android‑video‑trimmer](https://github.com/a914�
  ```gradle
  // replace x.y.z with latest available jitpack version
  dependencies {
-    implementation 'TODO'
+    implementation 'com.github.Hassaan-Javed:gowtham-video-trimmer-fork:{LatestVersion}'
  }
  ```
  + Add to project's root `build.gradle` file:
