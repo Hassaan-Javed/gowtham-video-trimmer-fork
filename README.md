@@ -4,11 +4,11 @@
 
 _Forked from [a914‑gowtham/android‑video‑trimmer](https://github.com/a914‑gowtham/android‑video‑trimmer) (Apache 2.0)._
 
-*This version re‑integrates FFmpeg‑Kit*
+*This version removes FFmpeg‑Kit and uses LiTr instead*
 
 # Android-video-trimmer
 
-##### Helps to trim local videos with many customizations on Android applications using exoplayer2 and FFmpeg 
+##### Helps to trim local videos with many customizations on Android applications using exoplayer2 and LiTr
 
 ![](https://github.com/a914-gowtham/Android-video-trimmer/blob/master/demo.gif)
 
@@ -168,29 +168,21 @@ TrimVideo.activity(videoUri)
 
 ## Compatibility
   
-  * Library - Android Nougat 7.0+ (API 24)
-  * Sample - Android Kitkat 4.4+ (API 19)
+  * Library - API 24+
+  * Sample - API 24+
 
 ## License
 
 This library is licensed under the MIT License.
 
-## FFmpeg Notice
+## LiTr Notice
 
-This library uses FFmpeg, which is licensed under the LGPL v3.0. 
+This project includes **LiTr** (Lightweight Video/Audio Transformer by LinkedIn), licensed under the [BSD‑2‑Clause License](https://opensource.org/licenses/BSD-2-Clause).
 
 ### Obtaining FFmpeg Source Code
 
-You can obtain the source code for FFmpeg from https://github.com/arthenica/ffmpeg-kit 
+You can obtain the source code for LiTr from https://github.com/linkedin/LiTr
 
-### Relinking Instructions
-
-If you wish to replace or modify the FFmpeg library used in this project, follow these steps:
-
-1. Obtain the modified version of FFmpeg.
-2. Replace the existing ffmpeg-kit-android-lib folder inside root directory.
-3. Rebuild the project.
-  
 ## Support 
 Show your support by giving a star to this repository. 
   

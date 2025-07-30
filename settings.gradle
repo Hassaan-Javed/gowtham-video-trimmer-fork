@@ -1,4 +1,3 @@
 include ':library'
-include ':ffmpeg-kit-android-lib'
 include ':app'
 rootProject.name = "VideoTrimmer"

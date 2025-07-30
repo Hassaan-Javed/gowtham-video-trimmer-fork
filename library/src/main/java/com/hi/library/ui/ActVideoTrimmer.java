@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
+import android.media.MediaFormat;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
@@ -25,16 +26,20 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.akexorcist.localizationactivity.ui.LocalizationActivity;
-import com.arthenica.ffmpegkit.FFmpegKit;
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.TransitionOptions;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.request.RequestOptions;
 import com.google.android.exoplayer2.C;
@@ -61,13 +66,20 @@ import com.hi.library.utils.TrimVideo;
 import com.hi.library.utils.TrimVideoOptions;
 import com.hi.library.utils.TrimmerUtils;
 import com.hi.library.utils.ViewUtil;
+import com.linkedin.android.litr.MediaTransformer;
+import com.linkedin.android.litr.TransformationListener;
+import com.linkedin.android.litr.TransformationOptions;
+import com.linkedin.android.litr.analytics.TrackTransformationInfo;
+import com.linkedin.android.litr.io.MediaRange;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 
 
@@ -108,7 +120,10 @@ public class ActVideoTrimmer extends LocalizationActivity {
     private ProgressBar progressBar;
 
     private TrimVideoOptions trimVideoOptions;
+    private MediaTransformer mediaTransformer;
 
+
+    private String currentId = "";
     private long currentDuration, lastClickedTime;
     Runnable updateSeekbar = new Runnable() {
         @Override
@@ -139,7 +154,14 @@ public class ActVideoTrimmer extends LocalizationActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        EdgeToEdge.enable(this);
         setContentView(R.layout.act_video_trimmer);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root_view), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+        mediaTransformer = new MediaTransformer(this);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         bundle = getIntent().getExtras();
@@ -481,7 +503,7 @@ public class ActVideoTrimmer extends LocalizationActivity {
                 f.delete();
             }
             stopRepeatingTask();
-            FFmpegKit.cancel();
+            mediaTransformer.cancel(currentId);
         } catch (Exception e) {
             LogMessage.e(Log.getStackTraceString(e));
         }
@@ -521,27 +543,12 @@ public class ActVideoTrimmer extends LocalizationActivity {
             LogMessage.v("sourcePath::" + filePath);
             videoPlayer.setPlayWhenReady(false);
             showProcessingDialog();
-            String[] complexCommand;
-            if (compressOption != null)
-                complexCommand = getCompressionCmd();
-            else if (isAccurateCut) {
-                //no changes in video quality
-                //faster trimming command and given duration will be accurate
-                complexCommand = getAccurateCmd();
-            } else {
-                //no changes in video quality
-                //fastest trimming command however, result duration
-                //will be low accurate(2-3 secs)
-                complexCommand = new String[]{"-ss", TrimmerUtils.formatCSeconds(lastMinValue),
-                        "-i", String.valueOf(filePath),
-                        "-t",
-                        TrimmerUtils.formatCSeconds(lastMaxValue - lastMinValue),
-                        "-async", "1", "-strict", "-2", "-c", "copy", outputPath};
-            }
-            execFFmpegBinary(complexCommand, true);
+            trimVideoWithLiTr();
         } else
             Toast.makeText(this, getString(R.string.txt_smaller) + " " + TrimmerUtils.getLimitedTimeFormatted(maxToGap), Toast.LENGTH_SHORT).show();
     }
+
+
 
     private String getFileName() {
         String path = getExternalFilesDir("TrimmedVideo").getPath();
@@ -560,89 +567,88 @@ public class ActVideoTrimmer extends LocalizationActivity {
         return String.valueOf(newFile);
     }
 
-    private String[] getCompressionCmd() {
-        MediaMetadataRetriever metaRetriever = new MediaMetadataRetriever();
-        metaRetriever.setDataSource(String.valueOf(filePath));
-        String height = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
-        String width = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
-        int w = TrimmerUtils.clearNull(width).isEmpty() ? 0 : Integer.parseInt(width);
-        int h = Integer.parseInt(height);
-        int rotation = TrimmerUtils.getVideoRotation(this, filePath);
-        if (rotation == 90 || rotation == 270) {
-            int temp = w;
-            w = h;
-            h = temp;
-        }
-        //Default compression option
-        if (compressOption.getWidth() != 0 || compressOption.getHeight() != 0
-                || !compressOption.getBitRate().equals("0k")) {
-            return new String[]{"-ss", TrimmerUtils.formatCSeconds(lastMinValue),
-                    "-i", String.valueOf(filePath), "-s", compressOption.getWidth() + "x" +
-                    compressOption.getHeight(),
-                    "-r", String.valueOf(compressOption.getFrameRate()),
-                    "-vcodec", "mpeg4", "-b:v",
-                    compressOption.getBitRate(), "-b:a", "48000", "-ac", "2", "-ar",
-                    "22050", "-t",
-                    TrimmerUtils.formatCSeconds(lastMaxValue - lastMinValue), outputPath};
-        }
-        //Dividing high resolution video by 2(ex: taken with camera)
-        else if (w >= 800) {
-            w = w / 2;
-            h = h / 2;
-            return new String[]{"-ss", TrimmerUtils.formatCSeconds(lastMinValue),
-                    "-i", String.valueOf(filePath),
-                    "-s", w + "x" + h, "-r", "30",
-                    "-vcodec", "mpeg4", "-b:v",
-                    "1M", "-b:a", "48000", "-ac", "2", "-ar", "22050",
-                    "-t",
-                    TrimmerUtils.formatCSeconds(lastMaxValue - lastMinValue), outputPath};
-        } else {
-            return new String[]{"-ss", TrimmerUtils.formatCSeconds(lastMinValue),
-                    "-i", String.valueOf(filePath), "-s", w + "x" + h, "-r",
-                    "30", "-vcodec", "mpeg4", "-b:v",
-                    "400K", "-b:a", "48000", "-ac", "2", "-ar", "22050",
-                    "-t",
-                    TrimmerUtils.formatCSeconds(lastMaxValue - lastMinValue), outputPath};
-        }
-    }
 
-    private void execFFmpegBinary(final String[] command, boolean retry) {
-        try {
-            FFmpegKit.executeWithArgumentsAsync(command, session -> {
-                int result = session.getReturnCode().getValue();
-                if (result == 0) {
+    private void trimVideoWithLiTr() {
+        if (!isValidVideo) {
+            Toast.makeText(this, getString(R.string.txt_smaller) + " " + TrimmerUtils.getLimitedTimeFormatted(maxToGap), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+
+        MediaRange mediaRange = new MediaRange(
+                lastMinValue * 1000000L, // start in microseconds
+                (lastMaxValue - lastMinValue) * 1000000L // duration
+        );
+
+
+        TransformationListener transformationListener = new TransformationListener() {
+            @Override
+            public void onStarted(@NonNull String id) {
+                LogMessage.v("Transformation started");
+
+            }
+
+            @Override
+            public void onProgress(@NonNull String id, float progress) {
+                LogMessage.v("Progress: " + (progress * 100) + "%");
+
+            }
+
+            @Override
+            public void onCompleted(@NonNull String id, @Nullable List<TrackTransformationInfo> trackTransformationInfos) {
+                LogMessage.v("Transformation completed: " + id);
+                runOnUiThread(() -> {
                     dialog.dismiss();
                     if (showFileLocationAlert) showLocationAlert();
-                    else {
+                    else{
+
+
                         Intent intent = new Intent();
                         intent.putExtra(TrimVideo.TRIMMED_VIDEO_PATH, outputPath);
                         setResult(RESULT_OK, intent);
                         finish();
                     }
-                } else if (result == 255) {
-                    LogMessage.v("Command cancelled");
-                    if (dialog.isShowing())
-                        dialog.dismiss();
-                } else {
-                    // Failed case:
-                    // line 489 command fails on some devices in
-                    // that case retrying with accurateCmt as alternative command
-                    if (retry && !isAccurateCut && compressOption == null) {
-                        File newFile = new File(outputPath);
-                        if (newFile.exists()) newFile.delete();
-                        execFFmpegBinary(getAccurateCmd(), false);
-                    } else {
-                        if (dialog.isShowing()) dialog.dismiss();
-                        runOnUiThread(() -> Toast.makeText(ActVideoTrimmer.this, "Failed to trim", Toast.LENGTH_SHORT).show());
-                    }
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+                });
+            }
 
+            @Override
+            public void onCancelled(@NonNull String id, @Nullable List<TrackTransformationInfo> trackTransformationInfos) {
+                LogMessage.v("Transformation cancelled: " + id);
+                runOnUiThread(() -> {
+                    dialog.dismiss();
+                    Toast.makeText(ActVideoTrimmer.this, "Trim cancelled", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onError(@NonNull String id, @Nullable Throwable cause, @Nullable List<TrackTransformationInfo> trackTransformationInfos) {
+                LogMessage.v("Transformation error: " + android.util.Log.getStackTraceString(cause));
+                runOnUiThread(() -> {
+                    dialog.dismiss();
+                    Toast.makeText(ActVideoTrimmer.this, "Failed to trim", Toast.LENGTH_SHORT).show();
+                });
+            }
+        };
+
+
+        TransformationOptions transformationOptions =
+                new TransformationOptions.Builder()
+                        .setRemoveAudio(false)
+                        .setSourceMediaRange(mediaRange)
+                                .build();
+
+
+        currentId = UUID.randomUUID().toString();
+        mediaTransformer.transform(
+                /* requestId */ currentId,
+                /* inputUri */ Uri.fromFile(new File(filePath.toString())),
+                /* outputFile */ outputPath,
+                /* targetFormat */ null,
+                /* targetVideoTrackFormat */ null,
+                /* TransformationListener */ transformationListener,
+                /* TransformationOptions */ transformationOptions
+        );
     }
-
     private void showLocationAlert() {
         // dialog to ask user to open file location in file manager or not
         AlertDialog openFileLocationDialog = new AlertDialog.Builder(ActVideoTrimmer.this).create();
@@ -672,12 +678,7 @@ public class ActVideoTrimmer extends LocalizationActivity {
         openFileLocationDialog.show();
     }
 
-    private String[] getAccurateCmd() {
-        return new String[]{"-ss", TrimmerUtils.formatCSeconds(lastMinValue)
-                , "-i", String.valueOf(filePath), "-t",
-                TrimmerUtils.formatCSeconds(lastMaxValue - lastMinValue),
-                "-async", "1", outputPath};
-    }
+
 
     private void showProcessingDialog() {
         try {
@@ -689,7 +690,8 @@ public class ActVideoTrimmer extends LocalizationActivity {
             dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             txtCancel.setOnClickListener(v -> {
                 dialog.dismiss();
-                FFmpegKit.cancel();
+//                FFmpegKit.cancel();
+                mediaTransformer.cancel(currentId);
             });
             dialog.show();
         } catch (Exception e) {
