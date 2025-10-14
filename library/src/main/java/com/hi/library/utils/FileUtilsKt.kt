@@ -1,85 +1,53 @@
 package com.hi.library.utils
 
 import android.content.Context
-import android.database.Cursor
 import android.net.Uri
-import android.provider.MediaStore
-import android.util.Log
+import androidx.core.content.FileProvider
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+
 
 object FileUtilKt {
 
-    @JvmStatic
-    fun getValidatedFileUri(context: Context, uri: Uri): String? {
-        val actualUri = getActualFileUri(context, uri)
-        return if (actualUri != null && File(actualUri).canRead())
-            actualUri
-        else {
-            FileCacheHandler.putFileInCache(context, context.contentResolver.openInputStream(uri))
-        }
-    }
+
 
     @JvmStatic
-    fun getActualFileUri(context: Context, uri: Uri): String? {
+    fun getActualFileUri(context: Context, uri: Uri): Uri {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        if (inputStream == null) throw IOException("Unable to open input stream from URI")
+
+        val fileName = "video_" + System.currentTimeMillis() + ".mp4"
+        val tempFile = File(context.cacheDir, fileName)
+
         try {
-            val actualPath = getFileUriFromContentProvider(context, uri)
-            return if (actualPath != null) {
-                actualPath
-            } else {
-                val id = uri.path?.split(":")?.last()
-                id?.let {
-                    val realUri = getFileUriFromContentProviderBySplit(context, id)
-                    realUri
+            FileOutputStream(tempFile).use { outputStream ->
+                val buffer = ByteArray(4096)
+                var bytesRead: Int
+                while ((inputStream.read(buffer).also { bytesRead = it }) != -1) {
+                    outputStream.write(buffer, 0, bytesRead)
                 }
             }
-
-        } catch (e: Exception) {
-            LogMessage.e(Log.getStackTraceString(e));
-        }
-        return null
-    }
-
-    private fun getFileUriFromContentProvider(context: Context, uri: Uri): String? {
-        var cursor: Cursor? = null
-        try {
-            val proj = arrayOf(MediaStore.Video.Media.DATA)
-            cursor = context.contentResolver.query(uri, proj, null, null, null)
-            if (cursor != null) {
-                val columnIndex: Int = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                cursor.moveToFirst()
-                return cursor.getString(columnIndex)
-            }
-            return null
         } finally {
-            cursor?.close()
+            inputStream.close()
         }
+
+        return Uri.fromFile(tempFile)
     }
 
-    private fun getFileUriFromContentProviderBySplit(context: Context, id: String): String? {
-        var cursor: Cursor? = null
-        try {
-            val queryUri = MediaStore.Files.getContentUri("external")
-            val projection = arrayOf(
-                MediaStore.Files.FileColumns._ID,
-                MediaStore.Files.FileColumns.DATA,
-            )
-            cursor = context.contentResolver.query(
-                queryUri,
-                projection,
-                "(${MediaStore.Files.FileColumns._ID} IN (?))",
-                arrayOf(id),
-                null
-            )
-            if (cursor != null) {
-                val columnIndex: Int = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                while (cursor.moveToNext()) {
-                    return cursor.getString(columnIndex)
-                }
-            }
-            return null
-        } finally {
-            cursor?.close()
-        }
+
+    @JvmStatic
+    fun createVideoUri(context: Context): Uri? {
+        val videoFile = File(
+            context.cacheDir,
+            "captured_video_" + System.currentTimeMillis() + ".mp4"
+        )
+        return FileProvider.getUriForFile(
+            context,
+            context.packageName + ".fileprovider",
+            videoFile
+        )
     }
+
 
 }

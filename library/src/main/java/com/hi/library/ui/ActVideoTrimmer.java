@@ -93,8 +93,9 @@ public class ActVideoTrimmer extends LocalizationActivity {
 
     private ImageView[] imageViews;
 
-    private long totalDuration;
 
+    private long totalDuration;
+    
     private Dialog dialog;
 
     private Uri filePath;
@@ -201,8 +202,7 @@ public class ActVideoTrimmer extends LocalizationActivity {
                 imageFour, imageFive, imageSix, imageSeven, imageEight};
         seekHandler = new Handler();
         initPlayer();
-        if (checkStoragePermission())
-            setDataInView();
+        setDataInView();
     }
 
     private void setUpToolBar(ActionBar actionBar, String title) {
@@ -239,7 +239,7 @@ public class ActVideoTrimmer extends LocalizationActivity {
         try {
             Runnable fileUriRunnable = () -> {
                 Uri uri = Uri.parse(bundle.getString(TrimVideo.TRIM_VIDEO_URI));
-                String path = FileUtilKt.getValidatedFileUri(ActVideoTrimmer.this, uri);
+                String path = String.valueOf(FileUtilKt.getActualFileUri(ActVideoTrimmer.this, uri));
                 filePath = Uri.parse(path);
                 runOnUiThread(() -> {
                     LogMessage.v("VideoUri:: " + uri);
@@ -471,18 +471,7 @@ public class ActVideoTrimmer extends LocalizationActivity {
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PER_REQ_CODE) {
-            if (isPermissionOk(grantResults))
-                setDataInView();
-            else {
-                Toast.makeText(this, "Storage permission denied", Toast.LENGTH_SHORT).show();
-                finish();
-            }
-        }
-    }
+
 
     @Override
     protected void onPause() {
@@ -641,7 +630,7 @@ public class ActVideoTrimmer extends LocalizationActivity {
         currentId = UUID.randomUUID().toString();
         mediaTransformer.transform(
                 /* requestId */ currentId,
-                /* inputUri */ Uri.fromFile(new File(filePath.toString())),
+                /* inputUri */ filePath,
                 /* outputFile */ outputPath,
                 /* targetFormat */ null,
                 /* targetVideoTrackFormat */ null,
@@ -699,36 +688,6 @@ public class ActVideoTrimmer extends LocalizationActivity {
         }
     }
 
-    private boolean checkStoragePermission() {
-        Uri uri = Uri.parse(bundle.getString(TrimVideo.TRIM_VIDEO_URI));
-        String fileUri= FileUtilKt.getActualFileUri(this, uri);
-
-        if(fileUri!=null && new File(fileUri).canRead()){
-            // might have used photo picker or file picker. therefore have read access without permission.
-            return true;
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            boolean hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-                    == PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO)
-                            == PackageManager.PERMISSION_GRANTED;
-            if (hasPermission) {
-                return true;
-            } else {
-                return checkPermission(
-                        Manifest.permission.READ_MEDIA_VIDEO);
-            }
-        } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU) {
-            return checkPermission(
-                    Manifest.permission.READ_MEDIA_VIDEO);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return checkPermission(
-                    Manifest.permission.READ_EXTERNAL_STORAGE);
-        } else
-            return checkPermission(Manifest.permission.READ_EXTERNAL_STORAGE);
-
-    }
 
     private boolean checkPermission(String... permissions) {
         boolean allPermitted = false;

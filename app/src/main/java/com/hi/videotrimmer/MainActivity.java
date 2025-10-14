@@ -13,7 +13,9 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -35,6 +37,7 @@ import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
+import com.hi.library.utils.FileUtilKt;
 import com.hi.library.utils.LogMessage;
 import com.hi.library.utils.TrimType;
 import com.hi.library.utils.TrimVideo;
@@ -48,6 +51,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ExoPlayer videoPlayer;
     private EditText edtFixedGap, edtMinGap, edtMinFrom, edtMAxTo;
     private int trimType;
+    private Uri captureUri;
 
     ActivityResultLauncher<Intent> videoTrimResultLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -73,27 +77,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     LogMessage.v("videoTrimResultLauncher data is null");
             });
 
-    ActivityResultLauncher<Intent> takeOrSelectVideoResultLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            result -> {
-                if (result.getResultCode() == Activity.RESULT_OK &&
-                        result.getData() != null) {
-                    Intent data = result.getData();
-                  //check video duration if needed
-           /*        if (TrimmerUtils.getDuration(this,data.getData())<=30){
-                    Toast.makeText(this,"Video should be larger than 30 sec",Toast.LENGTH_SHORT).show();
-                    return;
-                }*/
-                    if (data.getData() != null) {
-                        LogMessage.v("Video path:: " + data.getData());
-                        openTrimActivity(String.valueOf(data.getData()));
-                    } else {
-                        Toast.makeText(this, "video uri is null", Toast.LENGTH_SHORT).show();
-                    }
-                } else
-                    LogMessage.v("takeVideoResultLauncher data is null");
-            });
 
+
+    ActivityResultLauncher<PickVisualMediaRequest> selectVideoResultLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.PickVisualMedia(),
+                    uri -> {
+                        if (uri != null) {
+                            openTrimActivity(String.valueOf(uri));
+                        }
+                    });
+    ActivityResultLauncher<Uri> takeVideoResultLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.CaptureVideo(),
+                    result->{
+                        if (result != null && result) {
+                        openTrimActivity(captureUri.toString());
+                    } else {
+                        Toast.makeText(this, "Video capture cancelled", Toast.LENGTH_SHORT).show();
+                    }
+
+
+            });
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -168,26 +173,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.btn_default_trim:
-                onDefaultTrimClicked();
-                break;
-            case R.id.btn_fixed_gap:
-                onFixedTrimClicked();
-                break;
-            case R.id.btn_min_gap:
-                onMinGapTrimClicked();
-                break;
-            case R.id.btn_min_max_gap:
-                onMinToMaxTrimClicked();
-                break;
-        }
+
+        if (v.getId()==R.id.btn_default_trim)
+            onDefaultTrimClicked();
+
+        if (v.getId()==R.id.btn_fixed_gap)
+            onFixedTrimClicked();
+
+        if (v.getId()==R.id.btn_min_gap)
+            onMinGapTrimClicked();
+
+        if (v.getId()==R.id.btn_min_max_gap)
+            onMinToMaxTrimClicked();
+
     }
 
     private void onDefaultTrimClicked() {
         trimType = 0;
-        if (checkCamStoragePer())
-            showVideoOptions();
+
+        showVideoOptions();
     }
 
     @Override
@@ -198,29 +202,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void onFixedTrimClicked() {
         trimType = 1;
-        if (isEdtTxtEmpty(edtFixedGap))
+        if (isEdtTxtEmpty(edtFixedGap)) {
+
             Toast.makeText(this, "Enter fixed gap duration", Toast.LENGTH_SHORT).show();
-        else if (checkCamStoragePer())
-            showVideoOptions();
+            return;
+        }
+
+        showVideoOptions();
     }
 
     private void onMinGapTrimClicked() {
         trimType = 2;
-        if (isEdtTxtEmpty(edtMinGap))
+        if (isEdtTxtEmpty(edtMinGap)) {
             Toast.makeText(this, "Enter min gap duration", Toast.LENGTH_SHORT).show();
-        else if (checkCamStoragePer())
-            showVideoOptions();
+            return;
+        }
+
+        showVideoOptions();
     }
 
 
     private void onMinToMaxTrimClicked() {
         trimType = 3;
-        if (isEdtTxtEmpty(edtMinFrom))
+        if (isEdtTxtEmpty(edtMinFrom)) {
             Toast.makeText(this, "Enter min gap duration", Toast.LENGTH_SHORT).show();
-        else if (isEdtTxtEmpty(edtMAxTo))
+            return;
+        }
+        else if (isEdtTxtEmpty(edtMAxTo)) {
             Toast.makeText(this, "Enter max gap duration", Toast.LENGTH_SHORT).show();
-        else if (checkCamStoragePer())
-            showVideoOptions();
+            return;
+
+        }
+
+        showVideoOptions();
     }
 
     public void showVideoOptions() {
@@ -245,24 +259,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void captureVideo() {
+
         try {
-            Intent intent = new Intent("android.media.action.VIDEO_CAPTURE");
-            intent.putExtra("android.intent.extra.durationLimit", 30);
-            takeOrSelectVideoResultLauncher.launch(intent);
+            captureUri = FileUtilKt.createVideoUri(this);
+            takeVideoResultLauncher.launch(captureUri);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public void openVideo() {
-        try {
-            Intent intent = new Intent();
-            intent.setType("video/*");
-            intent.setAction(Intent.ACTION_GET_CONTENT);
-            takeOrSelectVideoResultLauncher.launch(Intent.createChooser(intent, "Select Video"));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        PickVisualMediaRequest request = new PickVisualMediaRequest.Builder()
+                .setMediaType(ActivityResultContracts.PickVisualMedia.VideoOnly.INSTANCE)
+                .build();
+        selectVideoResultLauncher.launch(request);
     }
 
     @Override
@@ -280,32 +290,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return Long.parseLong(editText.getText().toString().trim());
     }
 
-    private boolean checkCamStoragePer() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            boolean hasPermission= ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-                    == PackageManager.PERMISSION_GRANTED
-                    || ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO)
-                    == PackageManager.PERMISSION_GRANTED;
-            boolean hasCamera= ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                    == PackageManager.PERMISSION_GRANTED;
-            if(hasPermission && hasCamera){
-                return true;
-            }else {
-                return checkPermission(
-                        Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.CAMERA);
-            }
 
-        } else if(Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU)
-        {
-            return checkPermission(
-                    Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.CAMERA);
-        }
-        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return checkPermission(
-                    Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.CAMERA);
-        } else
-            return checkPermission(Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.CAMERA);
-    }
 
     private boolean checkPermission(String... permissions) {
         boolean allPermitted = false;
